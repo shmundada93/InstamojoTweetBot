@@ -27,7 +27,7 @@ class StdOutListener(tweepy.streaming.StreamListener):
  
     def on_status(self, status):
         
-        text = str(status.text)
+        text = status.text.encode('ascii','ignore')
 
         if "#sell " in text:
             twitter_id = str(status.author.id_str)

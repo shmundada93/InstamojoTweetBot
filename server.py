@@ -8,7 +8,7 @@ from tweepy import OAuthHandler
 import tweepy
 
 cloud = heroku.from_key('f7842503-7b2e-43c3-9a4d-2401b7c34387')
-herokuapp = cloud.apps['instamojotweet']
+herokuapp = cloud.apps['instamojobot']
 
 # Twitter Consumer keys and access tokens, used for OAuth
 consumer_key = 'nZEzUToqKZcMIWu4nSNXnq6Kq'
@@ -59,6 +59,7 @@ def add_user():
         token = api.auth(request.form['username'],request.form['password'])
     except:
         token = 'bade10ebfbac041b362a82611d0d194f'
+##    try:
     auth = OAuthHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_token_secret)
     api = tweepy.API(auth)
@@ -72,8 +73,10 @@ def add_user():
     if flag:
         c.execute("INSERT INTO Users VALUES ('%s','%s','%s')"%(request.form['twitter_handle'],twitter_id,token))
     closedb(c)
-    herokuapp.processes['worker'].restart()
+    herokuapp.processes['worker'][0].restart()
     return 'Thanks. User created : <a href="/"> Home </a>'
+##    except:
+##        return 'Sorry. Some Error : <a href="/"> Home </a>'
     
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
