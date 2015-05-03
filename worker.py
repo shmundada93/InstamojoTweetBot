@@ -1,7 +1,6 @@
 import tweepy
 from tweepy import Stream
 from tweepy import OAuthHandler
-import sqlite3
 from instamojo import Instamojo
 import re
 import os
