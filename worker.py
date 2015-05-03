@@ -58,6 +58,7 @@ class StdOutListener(tweepy.streaming.StreamListener):
                 c = opendb('tweets.db')
                 c.execute("INSERT INTO Tweets VALUES ('%s','%s','%s')"%(twitter_handle,text,url))
                 closedb(c)
+                print "Database Updated"
                 
             except:
                 pass
