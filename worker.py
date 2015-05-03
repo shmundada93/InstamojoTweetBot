@@ -4,6 +4,9 @@ from tweepy import OAuthHandler
 import sqlite3
 from instamojo import Instamojo
 import re
+import os
+import psycopg2
+import urlparse
  
 # Twitter Consumer keys and access tokens, used for OAuth
 consumer_key = 'nZEzUToqKZcMIWu4nSNXnq6Kq'
@@ -11,9 +14,20 @@ consumer_secret = 'xZpwdeiE4FnhQ5E4SE7O3KKa3FCzNWiPfDGRvrIPyHZKvpo4ZH'
 access_token = '3183114434-w4opn1VCE4DONH3aTybI0BjMVcdfphNrlbBVP9R'
 access_token_secret = 'bz5RRCPpg1qCsRehFCzgoeqlKtKq45rSvyZ9fMGuLCYwb'
 
+#Connecting to database
+urlparse.uses_netloc.append("postgres")
+url = urlparse.urlparse("postgres://jstgsgfleazuvu:nJGYg0dT6AYMNbqdBkV3bIf-Q8@ec2-184-73-165-195.compute-1.amazonaws.com:5432/dbaklh7r4800dg")
+
 #Database Open/Close methods
-def opendb(db):
-    return sqlite3.connect(db)
+
+def opendb():
+    return psycopg2.connect(
+    database=url.path[1:],
+    user=url.username,
+    password=url.password,
+    host=url.hostname,
+    port=url.port
+)
 
 def closedb(conn):
     conn.commit()
@@ -55,9 +69,10 @@ class StdOutListener(tweepy.streaming.StreamListener):
                 print url
                 
                 # Saving details to Tweets database
-                c = opendb('tweets.db')
+                conn = opendb()
+                c = conn.cursor()
                 c.execute("INSERT INTO Tweets VALUES ('%s','%s','%s')"%(twitter_handle,text,url))
-                closedb(c)
+                closedb(conn)
                 print "Database Updated"
                 
             except:
@@ -72,15 +87,18 @@ class StdOutListener(tweepy.streaming.StreamListener):
         print('Timeout...')
         return True # To continue listening
 
+
 #Select twitter_ids to follow
-userdb = opendb("users.db")
-users = userdb.execute('SELECT * FROM Users')
+userconn = opendb()
+userdb = userconn.cursor()
+userdb.execute('SELECT * FROM Users')
+users = userdb.fetchall()
 user_details = {}
 twitter_ids = []
 for user in users:
     twitter_ids.append(str(user[1]))
     user_details[str(user[1])] = {"twitter_handle":str(user[0]),"instamojo_auth":str(user[2])}
-closedb(userdb)
+closedb(userconn)
 
 
 #Initializing stream 

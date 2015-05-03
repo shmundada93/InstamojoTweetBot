@@ -1,5 +1,6 @@
 import os
-import sqlite3
+import psycopg2
+import urlparse
 import heroku
 from flask import Flask
 from flask import request,redirect,flash
@@ -16,8 +17,20 @@ consumer_secret = 'xZpwdeiE4FnhQ5E4SE7O3KKa3FCzNWiPfDGRvrIPyHZKvpo4ZH'
 access_token = '3183114434-w4opn1VCE4DONH3aTybI0BjMVcdfphNrlbBVP9R'
 access_token_secret = 'bz5RRCPpg1qCsRehFCzgoeqlKtKq45rSvyZ9fMGuLCYwb'
 
-def opendb(db):
-    return sqlite3.connect(db)
+#Connecting to database
+urlparse.uses_netloc.append("postgres")
+url = urlparse.urlparse("postgres://jstgsgfleazuvu:nJGYg0dT6AYMNbqdBkV3bIf-Q8@ec2-184-73-165-195.compute-1.amazonaws.com:5432/dbaklh7r4800dg")
+
+
+
+def opendb():
+    return psycopg2.connect(
+    database=url.path[1:],
+    user=url.username,
+    password=url.password,
+    host=url.hostname,
+    port=url.port
+)
 
 def closedb(conn):
     conn.commit()
@@ -28,12 +41,15 @@ app = Flask(__name__)
 
 @app.route("/")
 def Tweets():
-    c = opendb('tweets.db')
-    tweets = '<a href="/signup"> Signup for InstamojoTweetLink Service</a>' + "<br>"
-    for tweet in c.execute('SELECT * FROM Tweets'):
-        tweets = tweets + "<br>" + str(tweet[0]) + "<br>" + str(tweet[1]) + "<br>" + str(tweet[2]) + "<br>" + "<hr>"
-    closedb(c)
-    return tweets
+    conn = opendb()
+    c = conn.cursor()
+    c.execute('SELECT * FROM Tweets')
+    tweets = c.fetchall()
+    page = '<a href="/signup"> Signup for InstamojoTweetLink Service</a>' + "<br>"
+    for tweet in tweets:
+        page = page + "<br>" + str(tweet[0]) + "<br>" + str(tweet[1]) + "<br>" + str(tweet[2]) + "<br>" + "<hr>"
+    closedb(conn)
+    return page
 
 @app.route("/signup")
 def Signup():
@@ -59,24 +75,26 @@ def add_user():
         token = api.auth(request.form['username'],request.form['password'])
     except:
         token = 'bade10ebfbac041b362a82611d0d194f'
-##    try:
-    auth = OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-    api = tweepy.API(auth)
-    twitter_id = str(api.get_user(request.form['username']).id_str)
-    c = opendb('users.db')
-    users = c.execute('SELECT * FROM Users')
-    flag = True
-    for user in users:
-        if str(user[1]) == twitter_id:
-            flag = False
-    if flag:
-        c.execute("INSERT INTO Users VALUES ('%s','%s','%s')"%(request.form['twitter_handle'],twitter_id,token))
-    closedb(c)
-    herokuapp.processes['worker'][0].restart()
-    return 'Thanks. User created : <a href="/"> Home </a>'
-##    except:
-##        return 'Sorry. Some Error : <a href="/"> Home </a>'
+    try:
+        auth = OAuthHandler(consumer_key, consumer_secret)
+        auth.set_access_token(access_token, access_token_secret)
+        api = tweepy.API(auth)
+        twitter_id = str(api.get_user(request.form['username']).id_str)
+        conn = opendb()
+        c = conn.cursor()
+        c.execute('SELECT * FROM Users')
+        users = c.fetchall()
+        flag = True
+        for user in users:
+            if str(user[1]) == twitter_id:
+                flag = False
+        if flag:
+            c.execute("INSERT INTO Users VALUES ('%s','%s','%s')"%(request.form['twitter_handle'],twitter_id,token))
+        closedb(conn)
+        herokuapp.processes['worker'][0].restart()
+        return 'Thanks. User created : <a href="/"> Home </a>'
+    except:
+        return 'Sorry. Some Error : <a href="/"> Home </a>'
     
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
